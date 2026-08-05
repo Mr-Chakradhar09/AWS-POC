@@ -1,0 +1,7 @@
+com\ticketdesk\api\controller\TicketController.class
+com\ticketdesk\api\repository\TicketRepository.class
+com\ticketdesk\api\model\Ticket.class
+com\ticketdesk\api\model\Comment.class
+com\ticketdesk\api\repository\CommentRepository.class
+com\ticketdesk\api\service\TicketService.class
+com\ticketdesk\api\TicketDeskApplication.class

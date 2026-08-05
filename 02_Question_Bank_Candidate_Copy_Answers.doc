@@ -1,0 +1,172 @@
+<html>
+<head>
+<style>
+body { font-family: Arial, sans-serif; }
+h1 { color: #2E5A88; }
+h2 { color: #4B85C4; }
+.question { font-weight: bold; margin-top: 15px; }
+.answer { margin-bottom: 5px; }
+.reasoning { font-style: italic; color: #555; margin-bottom: 20px; }
+</style>
+</head>
+<body>
+
+<h1>AWS Capstone - Candidate Question Paper Answers</h1>
+<h2>Section A — Identity, Access & Security</h2>
+
+<div class="question">Q1. A containerised service running on Fargate needs read access to an object storage bucket. What is the correct way to grant it?</div>
+<div class="answer"><b>Correct Answer: c) Assign an IAM task role in the task definition</b></div>
+<div class="reasoning">Reasoning: In AWS ECS (including Fargate), the best practice for granting permissions to containers is to assign an IAM Task Role. This follows the principle of least privilege and avoids embedding long-lived credentials like access keys into the container image or environment variables.</div>
+
+<div class="question">Q2. A database password must be rotated automatically every 30 days without application changes. Which service is designed for this?</div>
+<div class="answer"><b>Correct Answer: a) AWS Secrets Manager</b></div>
+<div class="reasoning">Reasoning: AWS Secrets Manager is specifically built to handle secret rotation natively. It can automatically rotate credentials for RDS databases without requiring changes to the application, unlike SSM Parameter Store which requires custom Lambda functions for rotation.</div>
+
+<div class="question">Q3. A third party must assume a role in your account to run deployments. What should the trust relationship rely on?</div>
+<div class="answer"><b>Correct Answer: d) An sts:AssumeRole trust policy with an ExternalId condition</b></div>
+<div class="reasoning">Reasoning: When granting access to a third party to assume a role in your AWS account, using an `ExternalId` in the trust policy is essential to prevent the "confused deputy" problem, ensuring the third party can only assume the role on behalf of your specific tenant/account.</div>
+
+<div class="question">Q4. Your GitHub Actions pipeline must deploy to AWS with no long-lived credentials stored in the CI system. What do you configure?</div>
+<div class="answer"><b>Correct Answer: b) OIDC identity-provider federation to an IAM role</b></div>
+<div class="reasoning">Reasoning: OpenID Connect (OIDC) allows GitHub Actions to securely assume an IAM role in AWS using short-lived tokens, eliminating the need to store static IAM user credentials (access keys) in GitHub Secrets.</div>
+
+<div class="question">Q5. Which statement about IAM policy evaluation is correct?</div>
+<div class="answer"><b>Correct Answer: c) An explicit Deny always wins</b></div>
+<div class="reasoning">Reasoning: In AWS IAM policy evaluation, an explicit `Deny` in any applicable policy (identity-based, resource-based, SCP, etc.) always overrides any `Allow`. If an explicit deny is present, the action is blocked.</div>
+
+<h2>Section B — Networking</h2>
+
+<div class="question">Q6. Tasks in a private subnet must pull container images and ship logs, and the security team forbids any internet egress path. What do you provision?</div>
+<div class="answer"><b>Correct Answer: d) Interface endpoints for the registry API, registry Docker, and logs — plus a gateway endpoint for object storage</b></div>
+<div class="reasoning">Reasoning: To communicate with AWS services without an internet gateway or NAT gateway, you must use VPC Endpoints (AWS PrivateLink). ECR requires interface endpoints for its API and Docker registry operations, and a gateway endpoint for S3 (where ECR stores image layers). CloudWatch logs also require an interface endpoint.</div>
+
+<div class="question">Q7. Which correctly distinguishes security groups from network ACLs?</div>
+<div class="answer"><b>Correct Answer: a) Security groups are stateful and applied at the network interface; NACLs are stateless and applied at the subnet</b></div>
+<div class="reasoning">Reasoning: Security groups are stateful (return traffic is automatically allowed) and evaluate traffic at the ENI level. Network ACLs are stateless (require explicit inbound and outbound rules) and evaluate traffic at the subnet boundary.</div>
+
+<div class="question">Q8. A single load balancer must route /api/incidents to the Java service and /api/resources to the .NET service. Which feature does this?</div>
+<div class="answer"><b>Correct Answer: b) Listener rules with path-pattern conditions</b></div>
+<div class="reasoning">Reasoning: Application Load Balancers (ALB) support path-based routing via listener rules. You can define rules to route traffic to different target groups based on the URL path pattern (e.g., `/api/incidents/*`).</div>
+
+<div class="question">Q9. A private service must call the secrets store without its traffic leaving the AWS network. What do you add?</div>
+<div class="answer"><b>Correct Answer: c) An interface VPC endpoint (PrivateLink) for the secrets service</b></div>
+<div class="reasoning">Reasoning: To access AWS Secrets Manager privately without internet access, an Interface VPC Endpoint powered by AWS PrivateLink must be created in the VPC.</div>
+
+<h2>Section C — Compute, Containers & Deployment</h2>
+
+<div class="question">Q10. Image thumbnails must be generated on upload. Volume is bursty and each job runs under a second. Which compute model fits best?</div>
+<div class="answer"><b>Correct Answer: d) Lambda</b></div>
+<div class="reasoning">Reasoning: AWS Lambda is the ideal choice for event-driven, short-lived, bursty workloads like thumbnail generation triggered by an S3 upload. It scales instantly and you only pay for the sub-second execution time.</div>
+
+<div class="question">Q11. You need blue/green deployment for an ECS service with automatic rollback triggered by a CloudWatch alarm. What provides this natively?</div>
+<div class="answer"><b>Correct Answer: a) CodeDeploy as the ECS deployment controller</b></div>
+<div class="reasoning">Reasoning: AWS CodeDeploy integrates natively with ECS to provide blue/green deployments. It allows shifting traffic gradually and can automatically rollback if specified CloudWatch alarms go off during the deployment.</div>
+
+<div class="question">Q12. Your .NET container needs 40 seconds to become ready. The load balancer marks it unhealthy and the orchestrator kills it, looping forever. Best fix?</div>
+<div class="answer"><b>Correct Answer: c) Set an ECS health-check grace period and tune the health-check interval and unhealthy threshold</b></div>
+<div class="reasoning">Reasoning: The ECS health-check grace period allows the container sufficient time to start up before the load balancer begins evaluating its health, preventing premature termination of slowly starting tasks.</div>
+
+<div class="question">Q13. A latency-sensitive Java Lambda function suffers unacceptable cold starts. Which addresses this most directly?</div>
+<div class="answer"><b>Correct Answer: d) Enable provisioned concurrency and/or SnapStart</b></div>
+<div class="reasoning">Reasoning: Provisioned concurrency keeps Lambda execution environments initialized and ready to respond immediately. AWS SnapStart is specifically designed for Java functions to drastically reduce cold start times by snapshotting the initialized memory state.</div>
+
+<div class="question">Q14. Why should container image tags be immutable in your registry?</div>
+<div class="answer"><b>Correct Answer: c) It guarantees the artefact you tested is the artefact you deployed</b></div>
+<div class="reasoning">Reasoning: Immutability ensures that once an image is pushed with a specific tag (like a git SHA), it cannot be overwritten. This provides traceability and guarantees that the exact same image tested in lower environments is what gets deployed to production.</div>
+
+<h2>Section D — Data</h2>
+
+<div class="question">Q15. Two dispatchers simultaneously try to allocate the last available ambulance. Using a NoSQL key-value store, what prevents a double allocation?</div>
+<div class="answer"><b>Correct Answer: b) A conditional write on a version or status attribute (optimistic concurrency)</b></div>
+<div class="reasoning">Reasoning: In DynamoDB (a NoSQL store), conditional writes ensure that an update only succeeds if a specific condition is met (e.g., status is still 'AVAILABLE' or version number matches). This is the standard mechanism for optimistic locking to prevent race conditions.</div>
+
+<div class="question">Q16. Incident data needs multi-table joins, ACID transactions, ad-hoc reporting SQL, and the load is unpredictable and spiky. Which datastore?</div>
+<div class="answer"><b>Correct Answer: d) Aurora Serverless v2, PostgreSQL-compatible</b></div>
+<div class="reasoning">Reasoning: The requirement for joins, ACID transactions, and ad-hoc SQL dictates a relational database. The unpredictable and spiky load makes Aurora Serverless v2 the perfect fit, as it scales compute capacity up and down automatically based on demand.</div>
+
+<div class="question">Q17. RDS Multi-AZ primarily provides:</div>
+<div class="answer"><b>Correct Answer: a) A synchronous standby in another Availability Zone for automatic failover</b></div>
+<div class="reasoning">Reasoning: RDS Multi-AZ deployments synchronously replicate data to a standby instance in a different AZ. Its primary purpose is high availability and automatic failover in case the primary database instance or AZ fails.</div>
+
+<div class="question">Q18. Browser clients must upload photos to object storage without the bytes passing through your API. What do you use?</div>
+<div class="answer"><b>Correct Answer: b) A presigned URL or presigned POST issued by your API</b></div>
+<div class="reasoning">Reasoning: Presigned URLs allow clients to interact directly with S3 using a temporary, restricted credential generated by the API. This offloads the heavy lifting of file uploads from the API compute layer to S3.</div>
+
+<div class="question">Q19. Raw telemetry items in a NoSQL table must be deleted automatically 30 days after creation, at minimal cost. What do you use?</div>
+<div class="answer"><b>Correct Answer: c) A time-to-live attribute with TTL enabled</b></div>
+<div class="reasoning">Reasoning: DynamoDB's Time to Live (TTL) feature allows you to define an expiration timestamp for items. DynamoDB automatically deletes expired items in the background at no extra cost, making it the most cost-effective and zero-maintenance solution.</div>
+
+<h2>Section E — Integration & Event-Driven Design</h2>
+
+<div class="question">Q20. A burst of 500 reports per minute must not lose a single record even if the downstream consumer is completely stopped. Which pattern?</div>
+<div class="answer"><b>Correct Answer: d) Queue-based load levelling with a durable queue and a dead-letter queue</b></div>
+<div class="reasoning">Reasoning: A durable queue (like SQS) safely buffers messages during a burst or consumer outage. Load leveling ensures the consumer processes at its own pace. A DLQ handles messages that fail repeatedly.</div>
+
+<div class="question">Q21. One incident event must reach four independent consumers, each interested in a different subset of events, with no coupling between them and no change to producer code when a fifth is added. Best fit?</div>
+<div class="answer"><b>Correct Answer: a) An event bus with rules and content-based event patterns</b></div>
+<div class="reasoning">Reasoning: EventBridge (an event bus) is designed for decoupled, pub/sub architectures where consumers can filter events using content-based rules. Adding a new consumer just requires adding a new rule, without changing the producer.</div>
+
+<div class="question">Q22. Telemetry must be processed in order per vehicle, with the ability to replay the last 24 hours after a bug fix. Which is most appropriate?</div>
+<div class="answer"><b>Correct Answer: d) A data stream partitioned by vehicle ID</b></div>
+<div class="reasoning">Reasoning: AWS Kinesis Data Streams provide strict ordering within a shard (partitioned by partition key, i.e., vehicle ID) and retain data for up to 365 days, allowing for replay capabilities that standard queues do not natively offer.</div>
+
+<div class="question">Q23. A message has failed processing five times. What should happen and why?</div>
+<div class="answer"><b>Correct Answer: b) Route it to a dead-letter queue for inspection and later replay</b></div>
+<div class="reasoning">Reasoning: Poison pill messages that repeatedly fail should be moved to a Dead-Letter Queue (DLQ). This prevents them from continuously blocking the main queue and allows operators to inspect, fix the bug, and replay the messages later.</div>
+
+<div class="question">Q24. How do you make report submission idempotent across unreliable client retries?</div>
+<div class="answer"><b>Correct Answer: c) Have the client supply an idempotency key that the server records and checks with a conditional write</b></div>
+<div class="reasoning">Reasoning: An idempotency key provided by the client allows the server to recognize duplicate retry requests. Using a conditional write ensures the server only processing the request once, even under concurrent retry conditions.</div>
+
+<h2>Section F — IaC & CI/CD</h2>
+
+<div class="question">Q25. How should terraform plan be used in a team pipeline?</div>
+<div class="answer"><b>Correct Answer: b) Run plan on pull requests, publish the output for review, and gate apply behind an approval</b></div>
+<div class="reasoning">Reasoning: Running `terraform plan` on a PR allows the team to review the exact infrastructure changes before they are merged. Applying those changes should only happen after approval to prevent accidental disruptions.</div>
+
+<div class="question">Q26. Terraform state for a team of six must be:</div>
+<div class="answer"><b>Correct Answer: c) In a remote backend with state locking and encryption at rest</b></div>
+<div class="reasoning">Reasoning: For team collaboration, Terraform state must be stored in a remote backend (like S3) with state locking (via DynamoDB) to prevent concurrent operations from corrupting the state, and encryption at rest for security.</div>
+
+<div class="question">Q27. Which is a valid canary release approach for a serverless API?</div>
+<div class="answer"><b>Correct Answer: a) Alias weighted routing or an API canary stage shifting a small traffic percentage, with alarm-based automatic rollback</b></div>
+<div class="reasoning">Reasoning: Serverless canary releases are typically done using Lambda alias weighted routing or API Gateway canary release deployments, shifting traffic incrementally (e.g., 10%) and rolling back automatically if CloudWatch alarms trigger.</div>
+
+<div class="question">Q28. Which tooling detects security misconfiguration — such as a security group open to 0.0.0.0/0 — before the infrastructure is created?</div>
+<div class="answer"><b>Correct Answer: d) Checkov, tfsec or cfn-nag run as a pipeline stage</b></div>
+<div class="reasoning">Reasoning: Tools like Checkov and tfsec perform static code analysis on Infrastructure as Code (IaC) templates to detect security misconfigurations and compliance violations before the infrastructure is provisioned.</div>
+
+<h2>Section G — Observability & Operations</h2>
+
+<div class="question">Q29. You must follow a single request from the API entry point, through the Java service, across a queue, into the .NET consumer. What gives you this?</div>
+<div class="answer"><b>Correct Answer: c) Distributed tracing with trace context propagated across the async hop</b></div>
+<div class="reasoning">Reasoning: AWS X-Ray or OpenTelemetry provide distributed tracing. By propagating the trace context (trace ID) through HTTP headers and message metadata (the async hop), you can visualize the entire lifecycle of a request across microservices.</div>
+
+<div class="question">Q30. Which metric best signals that a queue consumer cannot keep up with the producer?</div>
+<div class="answer"><b>Correct Answer: b) Approximate age of the oldest message</b></div>
+<div class="reasoning">Reasoning: While queue length is helpful, `ApproximateAgeOfOldestMessage` in SQS is the most reliable indicator of a backlog, as it directly measures how much processing is falling behind in time.</div>
+
+<div class="question">Q31. CloudTrail’s primary purpose is:</div>
+<div class="answer"><b>Correct Answer: d) An audit trail of which principal called which API, when</b></div>
+<div class="reasoning">Reasoning: AWS CloudTrail is an auditing service that records API calls made within an AWS account, answering the crucial security questions of "who made what API call, when, and from where".</div>
+
+<div class="question">Q32. You want a business metric — "incidents triaged per minute", broken down by priority — available for dashboards and alarms. What is the right approach?</div>
+<div class="answer"><b>Correct Answer: b) Emit a custom metric with dimensions, via embedded metric format or a metrics API call</b></div>
+<div class="reasoning">Reasoning: CloudWatch Custom Metrics allow you to publish business-level metrics. Using Embedded Metric Format (EMF) in logs or the PutMetricData API allows you to push these metrics asynchronously with dimensions (like priority) for slicing and dicing on dashboards.</div>
+
+<h2>Section H — Cost & Well-Architected</h2>
+
+<div class="question">Q33. In a short-lived development environment, which is typically the largest avoidable cost?</div>
+<div class="answer"><b>Correct Answer: c) NAT Gateways, idle managed databases and load balancers left running 24x7</b></div>
+<div class="reasoning">Reasoning: Managed services like NAT Gateways, RDS instances, and ALBs incur hourly charges regardless of traffic. Leaving them running 24/7 in a dev environment when no one is working is a significant, avoidable expense.</div>
+
+<div class="question">Q34. You must report exactly what this POC has spent, separate from everything else in the account. What enables that?</div>
+<div class="answer"><b>Correct Answer: a) Cost allocation tags plus a filtered Cost Explorer view and a tag-scoped budget</b></div>
+<div class="reasoning">Reasoning: AWS Cost Explorer uses Cost Allocation Tags (e.g., `Project=TicketDesk`) to organize resource costs. This allows you to filter and report on the exact spend of a specific project within a shared account.</div>
+
+<div class="question">Q35. Which of these is not an AWS Well-Architected Framework pillar?</div>
+<div class="answer"><b>Correct Answer: c) Marketability</b></div>
+<div class="reasoning">Reasoning: The six pillars of the AWS Well-Architected Framework are Operational Excellence, Security, Reliability, Performance Efficiency, Cost Optimization, and Sustainability. Marketability is not a pillar.</div>
+
+</body>
+</html>
