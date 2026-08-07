@@ -7,6 +7,17 @@ data "aws_availability_zones" "available" {
   state = "available"
 }
 
+# Data source to get latest Amazon Linux 2023 AMI
+data "aws_ami" "amazon_linux" {
+  most_recent = true
+  owners      = ["amazon"]
+
+  filter {
+    name   = "name"
+    values = ["al2023-ami-2023.*-x86_64"]
+  }
+}
+
 # VPC
 resource "aws_vpc" "main" {
   cidr_block           = "10.0.0.0/16"
@@ -14,22 +25,24 @@ resource "aws_vpc" "main" {
   enable_dns_support   = true
   tags = {
     Name = "${var.project_name}-vpc"
+    Project = var.project_name
   }
 }
 
-# Public Subnets
+# Public Subnets (For EC2)
 resource "aws_subnet" "public" {
-  count                   = 2
+  count                   = 1
   vpc_id                  = aws_vpc.main.id
   cidr_block              = cidrsubnet(aws_vpc.main.cidr_block, 8, count.index)
   availability_zone       = data.aws_availability_zones.available.names[count.index]
   map_public_ip_on_launch = true
   tags = {
-    Name = "${var.project_name}-public-subnet-${count.index + 1}"
+    Name = "${var.project_name}-public-subnet"
+    Project = var.project_name
   }
 }
 
-# Private Subnets
+# Private Subnets (For RDS)
 resource "aws_subnet" "private" {
   count             = 2
   vpc_id            = aws_vpc.main.id
@@ -37,6 +50,7 @@ resource "aws_subnet" "private" {
   availability_zone = data.aws_availability_zones.available.names[count.index]
   tags = {
     Name = "${var.project_name}-private-subnet-${count.index + 1}"
+    Project = var.project_name
   }
 }
 
@@ -45,6 +59,7 @@ resource "aws_internet_gateway" "main" {
   vpc_id = aws_vpc.main.id
   tags = {
     Name = "${var.project_name}-igw"
+    Project = var.project_name
   }
 }
 
@@ -57,59 +72,31 @@ resource "aws_route_table" "public" {
   }
   tags = {
     Name = "${var.project_name}-public-rt"
+    Project = var.project_name
   }
 }
 
 resource "aws_route_table_association" "public" {
-  count          = 2
-  subnet_id      = aws_subnet.public[count.index].id
+  subnet_id      = aws_subnet.public[0].id
   route_table_id = aws_route_table.public.id
 }
 
-# Elastic IP for NAT Gateway
-resource "aws_eip" "nat" {
-  domain = "vpc"
-  tags = {
-    Name = "${var.project_name}-nat-eip"
-  }
-}
-
-# NAT Gateway
-resource "aws_nat_gateway" "main" {
-  allocation_id = aws_eip.nat.id
-  subnet_id     = aws_subnet.public[0].id
-  tags = {
-    Name = "${var.project_name}-nat"
-  }
-}
-
-# Private Route Table
-resource "aws_route_table" "private" {
-  vpc_id = aws_vpc.main.id
-  route {
-    cidr_block     = "0.0.0.0/0"
-    nat_gateway_id = aws_nat_gateway.main.id
-  }
-  tags = {
-    Name = "${var.project_name}-private-rt"
-  }
-}
-
-resource "aws_route_table_association" "private" {
-  count          = 2
-  subnet_id      = aws_subnet.private[count.index].id
-  route_table_id = aws_route_table.private.id
-}
-
-# Security Group for ALB
-resource "aws_security_group" "alb" {
-  name        = "${var.project_name}-alb-sg"
-  description = "Allow inbound HTTP"
+# Security Group for EC2
+resource "aws_security_group" "ec2" {
+  name        = "${var.project_name}-ec2-sg"
+  description = "Allow inbound HTTP and SSH"
   vpc_id      = aws_vpc.main.id
 
   ingress {
     from_port   = 80
     to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+  
+  ingress {
+    from_port   = 22
+    to_port     = 22
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
@@ -120,75 +107,15 @@ resource "aws_security_group" "alb" {
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
-}
-
-# Security Group for ECS Task
-resource "aws_security_group" "ecs_tasks" {
-  name        = "${var.project_name}-ecs-tasks-sg"
-  description = "Allow inbound access from ALB only"
-  vpc_id      = aws_vpc.main.id
-
-  ingress {
-    from_port       = var.app_port
-    to_port         = var.app_port
-    protocol        = "tcp"
-    security_groups = [aws_security_group.alb.id]
-  }
-
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
+  
+  tags = {
+    Project = var.project_name
   }
 }
 
-# Application Load Balancer
-resource "aws_lb" "main" {
-  name               = "${var.project_name}-alb"
-  internal           = false
-  load_balancer_type = "application"
-  security_groups    = [aws_security_group.alb.id]
-  subnets            = aws_subnet.public[*].id
-}
-
-resource "aws_lb_target_group" "main" {
-  name        = "${var.project_name}-tg"
-  port        = var.app_port
-  protocol    = "HTTP"
-  vpc_id      = aws_vpc.main.id
-  target_type = "ip"
-
-  health_check {
-    healthy_threshold   = 3
-    interval            = 30
-    protocol            = "HTTP"
-    matcher             = "200"
-    timeout             = 5
-    path                = "/api/health"
-    unhealthy_threshold = 2
-  }
-}
-
-resource "aws_lb_listener" "http" {
-  load_balancer_arn = aws_lb.main.arn
-  port              = "80"
-  protocol          = "HTTP"
-
-  default_action {
-    type             = "forward"
-    target_group_arn = aws_lb_target_group.main.arn
-  }
-}
-
-# ECS Cluster
-resource "aws_ecs_cluster" "main" {
-  name = "${var.project_name}-cluster"
-}
-
-# IAM Role for ECS Task Execution
-resource "aws_iam_role" "ecs_task_execution_role" {
-  name = "${var.project_name}-ecsTaskExecutionRole"
+# IAM Role for EC2
+resource "aws_iam_role" "ec2_role" {
+  name = "${var.project_name}-ec2-role"
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -196,66 +123,80 @@ resource "aws_iam_role" "ecs_task_execution_role" {
         Action = "sts:AssumeRole"
         Effect = "Allow"
         Principal = {
-          Service = "ecs-tasks.amazonaws.com"
+          Service = "ec2.amazonaws.com"
         }
       }
     ]
   })
 }
 
-resource "aws_iam_role_policy_attachment" "ecs_task_execution_role_policy" {
-  role       = aws_iam_role.ecs_task_execution_role.name
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
+# Allow EC2 to pull from ECR, read SSM Parameters, and access S3
+resource "aws_iam_role_policy" "ec2_policy" {
+  name = "${var.project_name}-ec2-policy"
+  role = aws_iam_role.ec2_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "ecr:GetAuthorizationToken",
+          "ecr:BatchCheckLayerAvailability",
+          "ecr:GetDownloadUrlForLayer",
+          "ecr:BatchGetImage",
+          "ssm:GetParameter",
+          "s3:PutObject",
+          "s3:GetObject"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
 }
 
-# ECS Task Definition
-resource "aws_ecs_task_definition" "main" {
-  family                   = "${var.project_name}-task"
-  network_mode             = "awsvpc"
-  requires_compatibilities = ["FARGATE"]
-  cpu                      = 256
-  memory                   = 512
-  execution_role_arn       = aws_iam_role.ecs_task_execution_role.arn
-
-  container_definitions = jsonencode([
-    {
-      name      = "api"
-      image     = var.app_image
-      essential = true
-      portMappings = [
-        {
-          containerPort = var.app_port
-          hostPort      = var.app_port
-        }
-      ]
-    }
-  ])
+resource "aws_iam_instance_profile" "ec2_profile" {
+  name = "${var.project_name}-ec2-profile"
+  role = aws_iam_role.ec2_role.name
 }
 
-# ECS Service
-resource "aws_ecs_service" "main" {
-  name            = "${var.project_name}-service"
-  cluster         = aws_ecs_cluster.main.id
-  task_definition = aws_ecs_task_definition.main.arn
-  desired_count   = 1
-  launch_type     = "FARGATE"
+# Free Tier EC2 Instance
+resource "aws_instance" "api" {
+  ami           = data.aws_ami.amazon_linux.id
+  instance_type = "t2.micro"
+  subnet_id     = aws_subnet.public[0].id
+  vpc_security_group_ids = [aws_security_group.ec2.id]
+  iam_instance_profile = aws_iam_instance_profile.ec2_profile.name
 
-  network_configuration {
-    security_groups  = [aws_security_group.ecs_tasks.id]
-    subnets          = aws_subnet.private[*].id
-    assign_public_ip = false
+  user_data = <<-EOF
+              #!/bin/bash
+              dnf update -y
+              dnf install -y docker
+              systemctl start docker
+              systemctl enable docker
+              
+              # Pull from ECR
+              REGION=${var.aws_region}
+              ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+              aws ecr get-login-password --region $REGION | docker login --username AWS --password-stdin $ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com
+              
+              # Get DB Password from SSM
+              DB_PASS=$(aws ssm get-parameter --name "/${var.project_name}/db_password" --with-decryption --query "Parameter.Value" --output text --region $REGION)
+              
+              # Run Container on port 80 mapping to 9090
+              docker run -d -p 80:9090 \
+                -e SPRING_DATASOURCE_URL="jdbc:postgresql://${aws_db_instance.main.endpoint}/ticketdesk" \
+                -e SPRING_DATASOURCE_USERNAME="${var.db_username}" \
+                -e SPRING_DATASOURCE_PASSWORD="$DB_PASS" \
+                -e SPRING_DATASOURCE_DRIVER_CLASS_NAME="org.postgresql.Driver" \
+                -e SPRING_JPA_DATABASE_PLATFORM="org.hibernate.dialect.PostgreSQLDialect" \
+                -e AWS_REGION="$REGION" \
+                -e S3_BUCKET_NAME="${aws_s3_bucket.attachments.bucket}" \
+                ${var.app_image}
+              EOF
+
+  tags = {
+    Name = "${var.project_name}-api-server"
+    Project = var.project_name
   }
-
-  load_balancer {
-    target_group_arn = aws_lb_target_group.main.arn
-    container_name   = "api"
-    container_port   = var.app_port
-  }
-
-  depends_on = [aws_lb_listener.http]
-}
-
-# Output the ALB DNS Name
-output "alb_dns_name" {
-  value = aws_lb.main.dns_name
 }

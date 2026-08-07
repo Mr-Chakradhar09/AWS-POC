@@ -23,6 +23,8 @@ public class Comment {
     @JsonIgnore
     private Ticket ticket;
 
+    private String authorName;
+
     // Getters and Setters
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
@@ -32,4 +34,6 @@ public class Comment {
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
     public Ticket getTicket() { return ticket; }
     public void setTicket(Ticket ticket) { this.ticket = ticket; }
+    public String getAuthorName() { return authorName; }
+    public void setAuthorName(String authorName) { this.authorName = authorName; }
 }

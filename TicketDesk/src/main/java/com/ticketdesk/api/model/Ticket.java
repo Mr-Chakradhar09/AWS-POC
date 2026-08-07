@@ -20,11 +20,20 @@ public class Ticket {
 
     private String category;
     
-    private String priority; // e.g., LOW, MEDIUM, HIGH, CRITICAL
+    @Column(nullable = false)
+    private String priority; // LOW, MEDIUM, HIGH, CRITICAL
     
+    @Column(nullable = false)
     private String status; // OPEN, IN_PROGRESS, RESOLVED, CLOSED
 
+    @Column
     private String attachmentUrl;
+
+    @Column
+    private Long creatorId; // The user who created the ticket
+
+    @Column
+    private Long assigneeId; // The IT Tech assigned to the ticket
 
     @Column(updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
@@ -47,6 +56,10 @@ public class Ticket {
     public void setStatus(String status) { this.status = status; }
     public String getAttachmentUrl() { return attachmentUrl; }
     public void setAttachmentUrl(String attachmentUrl) { this.attachmentUrl = attachmentUrl; }
+    public Long getCreatorId() { return creatorId; }
+    public void setCreatorId(Long creatorId) { this.creatorId = creatorId; }
+    public Long getAssigneeId() { return assigneeId; }
+    public void setAssigneeId(Long assigneeId) { this.assigneeId = assigneeId; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
     public List<Comment> getComments() { return comments; }

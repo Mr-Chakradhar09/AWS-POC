@@ -1,7 +1,14 @@
 com\ticketdesk\api\controller\TicketController.class
+com\ticketdesk\api\model\User.class
+com\ticketdesk\api\repository\NotificationRepository.class
 com\ticketdesk\api\repository\TicketRepository.class
 com\ticketdesk\api\model\Ticket.class
-com\ticketdesk\api\model\Comment.class
 com\ticketdesk\api\repository\CommentRepository.class
+com\ticketdesk\api\model\Notification.class
+com\ticketdesk\api\repository\UserRepository.class
+com\ticketdesk\api\config\DataInitializer.class
+com\ticketdesk\api\model\Comment.class
 com\ticketdesk\api\service\TicketService.class
+com\ticketdesk\api\controller\NotificationController.class
 com\ticketdesk\api\TicketDeskApplication.class
+com\ticketdesk\api\controller\AuthController.class

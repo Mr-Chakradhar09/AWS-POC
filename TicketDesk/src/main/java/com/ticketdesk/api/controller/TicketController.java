@@ -37,16 +37,18 @@ public class TicketController {
     }
 
     @PostMapping("/tickets")
-    public ResponseEntity<Ticket> createTicket(@RequestBody Ticket ticket) {
+    public ResponseEntity<Ticket> createTicket(@RequestBody Ticket ticket, @RequestHeader(value="X-User-Id", required=false) Long userId) {
+        if (userId != null) {
+            ticket.setCreatorId(userId);
+        }
         return ResponseEntity.ok(ticketService.createTicket(ticket));
     }
 
     @GetMapping("/tickets")
     public ResponseEntity<List<Ticket>> getTickets(
-            @RequestParam(required = false) String status,
-            @RequestParam(required = false) String priority,
-            @RequestParam(required = false) String category) {
-        return ResponseEntity.ok(ticketService.getAllTickets(status, priority, category));
+            @RequestHeader(value="X-User-Role", required=false) String role,
+            @RequestHeader(value="X-User-Id", required=false) Long userId) {
+        return ResponseEntity.ok(ticketService.getAllTickets(role, userId));
     }
 
     @GetMapping("/tickets/{id}")
@@ -59,39 +61,38 @@ public class TicketController {
         return ResponseEntity.ok(ticketService.updateTicketStatus(id, payload.get("status")));
     }
 
+    @PatchMapping("/tickets/{id}/assign")
+    public ResponseEntity<Ticket> assignTicket(@PathVariable Long id, @RequestBody Map<String, Long> payload) {
+        return ResponseEntity.ok(ticketService.assignTicket(id, payload.get("assigneeId")));
+    }
+
     @PostMapping("/tickets/{id}/comments")
     public ResponseEntity<Comment> addComment(@PathVariable Long id, @RequestBody Comment comment) {
         return ResponseEntity.ok(ticketService.addComment(id, comment));
     }
 
     @GetMapping("/dashboard")
-    public ResponseEntity<Map<String, Object>> getDashboard() {
-        return ResponseEntity.ok(ticketService.getDashboardStats());
+    public ResponseEntity<Map<String, Object>> getDashboard(
+            @RequestHeader(value="X-User-Role", required=false) String role,
+            @RequestHeader(value="X-User-Id", required=false) Long userId) {
+        return ResponseEntity.ok(ticketService.getDashboardStats(role, userId));
     }
 
-    // Serverless integration: Generate a presigned S3 URL for file uploads
     @GetMapping("/tickets/{id}/upload-url")
     public ResponseEntity<Map<String, String>> getPresignedUrl(@PathVariable Long id, @RequestParam String filename) {
         String objectKey = "attachments/ticket-" + id + "/" + UUID.randomUUID() + "-" + filename;
-        
         try (S3Presigner presigner = S3Presigner.builder()
                 .region(Region.of(awsRegion))
                 .credentialsProvider(DefaultCredentialsProvider.create())
                 .build()) {
-
             PutObjectPresignRequest presignRequest = PutObjectPresignRequest.builder()
                     .signatureDuration(Duration.ofMinutes(15))
                     .putObjectRequest(b -> b.bucket(bucketName).key(objectKey).build())
                     .build();
-
             String url = presigner.presignPutObject(presignRequest).url().toString();
-            
-            // In a real scenario, we might want to save this URL to the ticket after the client uploads it.
-            // For now, we just give the client the presigned URL.
             return ResponseEntity.ok(Map.of("uploadUrl", url, "objectKey", objectKey));
         } catch (Exception e) {
-            // Fallback for local testing if AWS credentials are not set
-            return ResponseEntity.ok(Map.of("uploadUrl", "http://localhost:8080/mock-upload", "objectKey", objectKey));
+            return ResponseEntity.ok(Map.of("uploadUrl", "http://localhost:9090/mock-upload", "objectKey", objectKey));
         }
     }
 
