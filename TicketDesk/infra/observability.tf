@@ -6,26 +6,7 @@ resource "aws_sns_topic" "alarms" {
   }
 }
 
-# Alarm 1: 5XX Errors on CloudFront (Replacing ALB)
-resource "aws_cloudwatch_metric_alarm" "cloudfront_5xx" {
-  alarm_name          = "${var.project_name}-cloudfront-5xx-errors"
-  comparison_operator = "GreaterThanThreshold"
-  evaluation_periods  = "1"
-  metric_name         = "5xxErrorRate"
-  namespace           = "AWS/CloudFront"
-  period              = "60"
-  statistic           = "Average"
-  threshold           = "5"
-  alarm_description   = "This alarm fires if there is >5% 5XX error rate in 1 minute"
-  alarm_actions       = [aws_sns_topic.alarms.arn]
-  
-  dimensions = {
-    DistributionId = aws_cloudfront_distribution.frontend.id
-    Region         = "Global"
-  }
-}
-
-# Alarm 2: EC2 Status Check Failed (Replacing Unhealthy Targets)
+# Alarm 1: EC2 Status Check Failed (Replacing Unhealthy Targets)
 resource "aws_cloudwatch_metric_alarm" "ec2_status_failed" {
   alarm_name          = "${var.project_name}-ec2-status-failed"
   comparison_operator = "GreaterThanThreshold"
@@ -43,7 +24,7 @@ resource "aws_cloudwatch_metric_alarm" "ec2_status_failed" {
   }
 }
 
-# Alarm 3: Database High CPU
+# Alarm 2: Database High CPU
 resource "aws_cloudwatch_metric_alarm" "db_cpu" {
   alarm_name          = "${var.project_name}-db-high-cpu"
   comparison_operator = "GreaterThanThreshold"
@@ -75,39 +56,6 @@ resource "aws_cloudwatch_dashboard" "main" {
         height = 6
         properties = {
           metrics = [
-            ["AWS/CloudFront", "Requests", "DistributionId", aws_cloudfront_distribution.frontend.id, "Region", "Global"]
-          ]
-          view    = "timeSeries"
-          stacked = false
-          region  = "us-east-1"
-          title   = "CloudFront Requests"
-        }
-      },
-      {
-        type   = "metric"
-        x      = 12
-        y      = 0
-        width  = 12
-        height = 6
-        properties = {
-          metrics = [
-            ["AWS/CloudFront", "5xxErrorRate", "DistributionId", aws_cloudfront_distribution.frontend.id, "Region", "Global"],
-            [".", "4xxErrorRate", ".", ".", ".", "."]
-          ]
-          view    = "timeSeries"
-          stacked = false
-          region  = "us-east-1"
-          title   = "CloudFront Error Rates"
-        }
-      },
-      {
-        type   = "metric"
-        x      = 0
-        y      = 6
-        width  = 12
-        height = 6
-        properties = {
-          metrics = [
             ["AWS/EC2", "CPUUtilization", "InstanceId", aws_instance.api.id]
           ]
           view    = "timeSeries"
@@ -119,7 +67,7 @@ resource "aws_cloudwatch_dashboard" "main" {
       {
         type   = "metric"
         x      = 12
-        y      = 6
+        y      = 0
         width  = 12
         height = 6
         properties = {

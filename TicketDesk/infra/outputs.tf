@@ -3,9 +3,9 @@ output "ec2_public_dns" {
   description = "The Public DNS of the EC2 instance"
 }
 
-output "cloudfront_url" {
-  value = aws_cloudfront_distribution.frontend.domain_name
-  description = "The CloudFront URL for the frontend"
+output "s3_website_url" {
+  value = aws_s3_bucket_website_configuration.frontend.website_endpoint
+  description = "The S3 Website URL for the frontend"
 }
 
 output "db_endpoint" {
