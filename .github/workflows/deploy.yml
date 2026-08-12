@@ -56,7 +56,9 @@ jobs:
 
       - name: Build Lambda Package
         working-directory: ./TicketDesk/infra/lambda
-        run: npm install
+        run: |
+          mkdir -p package
+          cp index.js package/
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
