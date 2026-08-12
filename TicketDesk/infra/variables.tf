@@ -5,9 +5,9 @@ variable "aws_region" {
 }
 
 variable "project_name" {
-  description = "Base name for resources"
+  description = "Name of the project"
   type        = string
-  default     = "ticketdesk"
+  default     = "ticketdesk-v2"
 }
 
 variable "app_port" {
