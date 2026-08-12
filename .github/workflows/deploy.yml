@@ -58,7 +58,8 @@ jobs:
         working-directory: ./TicketDesk/infra/lambda
         run: |
           mkdir -p package
-          cp index.js package/
+          pip install -r requirements.txt -t package/
+          cp thumbnail_generator.py package/
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
