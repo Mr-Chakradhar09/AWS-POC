@@ -78,6 +78,11 @@ jobs:
           service: ${{ env.ECS_SERVICE }}
           cluster: ${{ env.ECS_CLUSTER }}
           wait-for-service-stability: true
+         - name: Deploy Frontend to S3
+        working-directory: ./frontend
+        run: |
+          S3_BUCKET=$(cd ../infra && terraform output -raw frontend_bucket_name)
+          aws s3 sync dist/ s3://$S3_BUCKET/ --delete
 
       - name: Smoke Test
         run: |
