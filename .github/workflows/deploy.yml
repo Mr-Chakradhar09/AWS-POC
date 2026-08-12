@@ -49,6 +49,15 @@ jobs:
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
           echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '22'
+
+      - name: Build Lambda Package
+        working-directory: ./TicketDesk/infra/lambda
+        run: npm install
+
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
 
@@ -59,11 +68,6 @@ jobs:
         run: |
           terraform init
           terraform apply -auto-approve -var="app_image=$IMAGE"
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: '22'
           
       - name: Get EC2 DNS and Build Frontend
         working-directory: ./TicketDesk/frontend
