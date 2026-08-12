@@ -1,0 +1,78 @@
+name: Build and Deploy (Free Tier)
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REPOSITORY: ticketdesk-api
+
+jobs:
+  build-test-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Build, tag, and push image to Amazon ECR
+        id: build-image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        working-directory: ./TicketDesk
+        run: |
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+
+      - name: Terraform Apply
+        working-directory: ./TicketDesk/infra
+        env:
+          IMAGE: ${{ steps.build-image.outputs.image }}
+        run: |
+          terraform init
+          terraform apply -auto-approve -var="app_image=$IMAGE"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '22'
+          
+      - name: Get EC2 DNS and Build Frontend
+        working-directory: ./TicketDesk/frontend
+        run: |
+          # Grab the new server address from Terraform outputs
+          EC2_DNS=$(cd ../infra && terraform output -raw ec2_public_dns)
+          echo "VITE_API_URL=http://$EC2_DNS/api" > .env.production
+          
+          npm install
+          npm run build
+
+      - name: Deploy Frontend to S3
+        working-directory: ./TicketDesk/frontend
+        run: |
+          S3_BUCKET=$(cd ../infra && terraform output -raw frontend_bucket_name)
+          aws s3 sync dist/ s3://$S3_BUCKET/ --delete
