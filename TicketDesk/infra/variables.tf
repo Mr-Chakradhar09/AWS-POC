@@ -7,7 +7,7 @@ variable "aws_region" {
 variable "project_name" {
   description = "Name of the project"
   type        = string
-  default     = "ticketdesk-v2"
+  default     = "ticketdesk-v1"
 }
 
 variable "app_port" {
