@@ -66,30 +66,13 @@ jobs:
         with:
           terraform_wrapper: false
 
-      - name: Force Delete Stuck IAM Role
-        run: |
-          aws iam remove-role-from-instance-profile --instance-profile-name ticketdesk-v1-ec2-profile --role-name ticketdesk-v1-ec2-role 2>/dev/null || true
-          aws iam remove-role-from-instance-profile --instance-profile-name ticketdesk-v1-ec2-role --role-name ticketdesk-v1-ec2-role 2>/dev/null || true
-          aws iam delete-instance-profile --instance-profile-name ticketdesk-v1-ec2-profile 2>/dev/null || true
-          aws iam delete-instance-profile --instance-profile-name ticketdesk-v1-ec2-role 2>/dev/null || true
-          aws iam delete-role --role-name ticketdesk-v1-ec2-role 2>/dev/null || true
-
-      - name: Force Delete Stuck Resources
-        run: |
-          # 1. Delete Lambda Role (must detach policy first)
-          aws iam detach-role-policy --role-name ticketdesk-v1-lambda-role --policy-arn arn:aws:iam::aws:policy/AWSLambdaExecute 2>/dev/null || true
-          aws iam delete-role --role-name ticketdesk-v1-lambda-role 2>/dev/null || true
-          
-          # 2. Delete SSM Parameter
-          aws ssm delete-parameter --name "/ticketdesk-v1/db_password" --region us-east-1 2>/dev/null || true
-
       - name: Terraform Apply
         working-directory: ./TicketDesk/infra
         env:
           IMAGE: ${{ steps.build-image.outputs.image }}
         run: |
           terraform init
-          terraform apply -auto-approve -var="app_image=$IMAGE"
+           terraform apply -auto-approve -var="app_image=$IMAGE" -var="project_name=ticketdesk-v3"
           
       - name: Get EC2 DNS and Build Frontend
         working-directory: ./TicketDesk/frontend
