@@ -66,6 +66,14 @@ jobs:
         with:
           terraform_wrapper: false
 
+      - name: Force Delete Stuck IAM Role
+        run: |
+          aws iam remove-role-from-instance-profile --instance-profile-name ticketdesk-v1-ec2-profile --role-name ticketdesk-v1-ec2-role 2>/dev/null || true
+          aws iam remove-role-from-instance-profile --instance-profile-name ticketdesk-v1-ec2-role --role-name ticketdesk-v1-ec2-role 2>/dev/null || true
+          aws iam delete-instance-profile --instance-profile-name ticketdesk-v1-ec2-profile 2>/dev/null || true
+          aws iam delete-instance-profile --instance-profile-name ticketdesk-v1-ec2-role 2>/dev/null || true
+          aws iam delete-role --role-name ticketdesk-v1-ec2-role 2>/dev/null || true
+
       - name: Terraform Apply
         working-directory: ./TicketDesk/infra
         env:
@@ -89,3 +97,4 @@ jobs:
         run: |
           S3_BUCKET=$(cd ../infra && terraform output -raw frontend_bucket_name)
           aws s3 sync dist/ s3://$S3_BUCKET/ --delete
+    
