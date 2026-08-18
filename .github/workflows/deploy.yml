@@ -72,7 +72,7 @@ jobs:
           IMAGE: ${{ steps.build-image.outputs.image }}
         run: |
           terraform init
-           terraform apply -auto-approve -var="app_image=$IMAGE" -var="project_name=ticketdesk-v3"
+           terraform apply -auto-approve -var="app_image=$IMAGE" -var="project_name=ticketdesk-v4"
           
       - name: Get EC2 DNS and Build Frontend
         working-directory: ./TicketDesk/frontend
