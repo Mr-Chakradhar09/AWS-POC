@@ -74,6 +74,15 @@ jobs:
           aws iam delete-instance-profile --instance-profile-name ticketdesk-v1-ec2-role 2>/dev/null || true
           aws iam delete-role --role-name ticketdesk-v1-ec2-role 2>/dev/null || true
 
+      - name: Force Delete Stuck Resources
+        run: |
+          # 1. Delete Lambda Role (must detach policy first)
+          aws iam detach-role-policy --role-name ticketdesk-v1-lambda-role --policy-arn arn:aws:iam::aws:policy/AWSLambdaExecute 2>/dev/null || true
+          aws iam delete-role --role-name ticketdesk-v1-lambda-role 2>/dev/null || true
+          
+          # 2. Delete SSM Parameter
+          aws ssm delete-parameter --name "/ticketdesk-v1/db_password" --region us-east-1 2>/dev/null || true
+
       - name: Terraform Apply
         working-directory: ./TicketDesk/infra
         env:
