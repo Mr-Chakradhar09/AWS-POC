@@ -72,7 +72,7 @@ jobs:
           IMAGE: ${{ steps.build-image.outputs.image }}
         run: |
           terraform init
-           terraform apply -auto-approve -var="app_image=$IMAGE" -var="project_name=ticketdesk-v5"
+          terraform apply -auto-approve -var="app_image=$IMAGE" -var="project_name=ticketdesk-${{ github.run_id }}"
           
       - name: Get EC2 DNS and Build Frontend
         working-directory: ./TicketDesk/frontend
@@ -87,6 +87,6 @@ jobs:
       - name: Deploy Frontend to S3
         working-directory: ./TicketDesk/frontend
         run: |
-          S3_BUCKET=$(cd ../infra && terraform output -raw frontend_bucket_name)
+          S3_BUCKET=$(aws s3api list-buckets --query "Buckets[?starts_with(Name, 'ticketdesk-${{ github.run_id }}-frontend-')].Name" --output text)
           aws s3 sync dist/ s3://$S3_BUCKET/ --delete
     
